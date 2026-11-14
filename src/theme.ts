@@ -1,0 +1,54 @@
+import { TextStyle } from 'react-native';
+
+export const C = {
+  bg: '#EAF6EB',
+  white: '#FFFFFF',
+  ink: '#1E1E1E',
+  ink2: '#2C302D',
+  muted: '#3D423F',
+  navMuted: '#555B57',
+  green: '#00733B',
+  greenDark: '#00602F',
+  greenTint: '#F2FAF4',
+  greenFlash: '#DDF1E2',
+  /** Sub line on the green CTA. */
+  ctaSub: '#D6EEDD',
+  yellow: '#FFD84D',
+  yellowDash: '#B88A00',
+  yellowTint: '#FFF4CC',
+  grey: '#B8C2BB',
+  /** Empty part of the outcome bar. */
+  track: '#EDF1EE',
+  border: '#D5DDD8',
+  divider: '#E6ECE8',
+  navBorder: '#DCE3DE',
+  orangeTint: '#FFE9CC',
+  orangeInk: '#6B3A00',
+  orangeInkDark: '#3A2000',
+};
+
+const families = {
+  400: 'Figtree_400Regular',
+  500: 'Figtree_500Medium',
+  600: 'Figtree_600SemiBold',
+  700: 'Figtree_700Bold',
+  800: 'Figtree_800ExtraBold',
+} as const;
+
+export type Weight = keyof typeof families;
+
+/** Figtree ships one family per weight, so pick the family instead of fontWeight. */
+export function font(weight: Weight, size: number, color: string = C.ink, extra?: TextStyle): TextStyle {
+  return { fontFamily: families[weight], fontSize: size, color, ...extra };
+}
+
+/** Finnish money formatting: 24,90 € */
+export function eur(n: number, decimals = 2): string {
+  const fixed = Math.abs(n).toFixed(decimals).replace('.', ',');
+  return `${n < 0 ? '−' : ''}${fixed} €`;
+}
+
+/** Whole euros, rounded: 58 € */
+export function eur0(n: number): string {
+  return `${Math.round(n)} €`;
+}
