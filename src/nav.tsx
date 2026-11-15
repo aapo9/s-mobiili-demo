@@ -8,14 +8,26 @@ export type Route =
   | { name: 'review'; ids: string[]; goal?: number; single?: boolean }
   | { name: 'shopping' }
   | { name: 'detail'; id: string }
-  | { name: 'ask'; id: string };
+  | { name: 'learn'; id: string }
+  | { name: 'learnTransfer'; amount: number };
 
-export type Entry = { key: number; route: Route };
+export type Entry = {
+  key: number;
+  route: Route;
+  /** Set when this screen became the top again via `back`: the screen that was closed. Lets a screen skip its intro on return. */
+  returnedFrom?: Route['name'];
+};
 
 type Nav = {
   stack: Entry[];
   current: Entry;
   tab: Tab;
+  /**
+   * Scroll position per stack entry. Only the top screen is mounted, so a
+   * screen saves its offset here and restores it when you come back to it.
+   */
+  scrollY: (key: number) => number;
+  setScrollY: (key: number, y: number) => void;
   push: (r: Route) => void;
   replace: (r: Route) => void;
   back: () => void;
@@ -38,7 +50,21 @@ export function NavProvider({ children }: { children: React.ReactNode }) {
     (route: Route) => setStack((s) => [...s.slice(0, -1), { key: next(), route }]),
     [],
   );
-  const back = useCallback(() => setStack((s) => (s.length > 1 ? s.slice(0, -1) : s)), []);
+  const back = useCallback(
+    () =>
+      setStack((s) => {
+        if (s.length <= 1) return s;
+        const below = s[s.length - 2];
+        return [...s.slice(0, -2), { ...below, returnedFrom: s[s.length - 1].route.name }];
+      }),
+    [],
+  );
+  // Same key on return, so the offset saved before a push is found again; a new tab entry starts at the top.
+  const scrolls = useRef(new Map<number, number>());
+  const scrollY = useCallback((key: number) => scrolls.current.get(key) ?? 0, []);
+  const setScrollY = useCallback((key: number, y: number) => {
+    scrolls.current.set(key, y);
+  }, []);
   const goTab = useCallback(
     (t: Tab) => setStack((s) => (s.length === 1 && s[0].route.name === t ? s : [{ key: next(), route: { name: t } }])),
     [],
@@ -75,8 +101,8 @@ export function NavProvider({ children }: { children: React.ReactNode }) {
     const current = stack[stack.length - 1];
     const rootName = stack[0].route.name;
     const tab = (TABS as string[]).includes(rootName) ? (rootName as Tab) : 'home';
-    return { stack, current, tab, push, replace, back, goTab, resetTo };
-  }, [stack, push, replace, back, goTab, resetTo]);
+    return { stack, current, tab, scrollY, setScrollY, push, replace, back, goTab, resetTo };
+  }, [stack, scrollY, setScrollY, push, replace, back, goTab, resetTo]);
 
   return <NavContext.Provider value={value}>{children}</NavContext.Provider>;
 }

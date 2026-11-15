@@ -3,6 +3,7 @@ import { Animated, Easing, LayoutChangeEvent, StyleSheet, View } from 'react-nat
 import { C, eur, font } from '../theme';
 import { Icon } from './Icon';
 import { Pill, Press, T, tap } from './ui';
+import { useT } from '../i18n';
 
 export type RowView = {
   title: string;
@@ -37,6 +38,7 @@ export function PlanRow({
   freed?: number;
   onAnimDone?: () => void;
 }) {
+  const t = useT();
   const [h, setH] = useState<number | null>(null);
   const bg = useRef(new Animated.Value(0)).current; // 0 white → 1 green flash
   const tick = useRef(new Animated.Value(0)).current;
@@ -112,9 +114,9 @@ export function PlanRow({
           {sub}
         </T>
         {tag?.kind === 'suggest' ? (
-          <Pill label={`Ehdotus: säästä ${eur(tag.saving)}`} bg={C.yellowTint} color={C.orangeInk} icon="sparkle" />
+          <Pill label={t.suggestionSave(tag.saving)} bg={C.yellowTint} color={C.orangeInk} icon="sparkle" />
         ) : tag?.kind === 'kept' ? (
-          <Pill label="Pidät tämän" bg="#EEF2EF" color={C.muted} icon="lock" />
+          <Pill label={t.youKeepThis} bg="#EEF2EF" color={C.muted} icon="lock" />
         ) : tag?.kind === 'changed' ? (
           <Pill label={tag.label} bg={C.greenFlash} color={C.greenDark} icon="check" />
         ) : null}

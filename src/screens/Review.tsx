@@ -1,12 +1,13 @@
 import React, { useRef, useState } from 'react';
-import { Animated, Easing, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Animated, Easing, Image, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { C, eur, font } from '../theme';
-import { Suggestion, byId, planItem } from '../data';
+import { Suggestion, SwapProduct, unitOf } from '../data';
 import { useNav } from '../nav';
 import { savingFor, useSave } from '../state';
 import { OutcomeBars } from '../components/OutcomeBars';
 import { Icon } from '../components/Icon';
-import { AnimatedNumber, Btn, Header, Press, T, success, tap } from '../components/ui';
+import { AnimatedNumber, Btn, Header, LearnMore, Press, T, success, tap } from '../components/ui';
+import { useT } from '../i18n';
 
 /** Short screens (iPhone SE, small Android) get tighter type and spacing so the card still fits without scrolling. */
 function useCompact() {
@@ -16,11 +17,13 @@ function useCompact() {
 export function Review({ ids, goal, single }: { ids: string[]; goal?: number; single?: boolean }) {
   const nav = useNav();
   const st = useSave();
+  const t = useT();
   const compact = useCompact();
-  const [i, setI] = useState(0);
+  // Only the top screen is mounted, so coming back from Kerro lisää remounts this: resume at the first undecided card.
+  const [i, setI] = useState(() => Math.max(0, ids.findIndex((id) => st.decisions[id] === 'pending')));
   const [busy, setBusy] = useState(false);
   const [savedAtStart] = useState(st.saved);
-  const s = byId(ids[Math.min(i, ids.length - 1)]);
+  const s = st.demo.byId(ids[Math.min(i, ids.length - 1)]);
 
   // Local quantities for reduce cards so the outcome updates while the stepper moves.
   const [qtyMap, setQtyMap] = useState<Record<string, number>>(st.qty);
@@ -94,8 +97,8 @@ export function Review({ ids, goal, single }: { ids: string[]; goal?: number; si
     ],
   };
 
-  const title = single ? 'Ehdotus' : `Ehdotus ${i + 1} / ${ids.length}`;
-  const item = planItem(s.planItemId);
+  const title = single ? t.suggestion : t.suggestionN(i + 1, ids.length);
+  const item = st.demo.planItem(s.planItemId);
 
   return (
     <>
@@ -106,13 +109,13 @@ export function Review({ ids, goal, single }: { ids: string[]; goal?: number; si
           <View style={styles.goalNote}>
             <Icon name="sparkle" size={16} color={C.orangeInk} />
             <T w={700} s={14} c={C.orangeInk} style={{ flex: 1 }}>
-              Tavoite +{goal} € · säästöjä: {ids.length}
+              {t.goalNote(goal, ids.length)}
             </T>
           </View>
         ) : null}
 
         <View style={{ zIndex: 1 }}>
-          <OutcomeBars size="sm" preview={preview} previewLabel="Jos hyväksyt" goal={goal !== undefined ? savedAtStart + goal : undefined} />
+          <OutcomeBars size="sm" preview={preview} previewLabel={t.ifYouAccept} goal={goal !== undefined ? savedAtStart + goal : undefined} />
           <Animated.Text
             pointerEvents="none"
             style={[
@@ -146,14 +149,17 @@ export function Review({ ids, goal, single }: { ids: string[]; goal?: number; si
             {s.title}
           </T>
 
-          <CardBody s={s} qty={qty} setQty={setQty} saving={saving} />
+          <CardBody s={s} qty={qty} setQty={setQty} onLearn={() => nav.push({ name: 'learn', id: s.id })} />
 
           <View style={{ flex: 1, minHeight: 4 }} />
 
+          {/* The saving sits at the bottom, right above the buttons that decide it. */}
+          <Saving lead={s.kind === 'reduce' && qty === s.current ? t.sameAsNow : s.lead} value={saving} />
+
           <View style={styles.actions}>
-            <Btn label="Hylkää" kind="outline" height={compact ? 50 : 56} onPress={onKeep} disabled={busy} containerStyle={{ flex: 1 }} />
+            <Btn label={t.reject} kind="outline" height={compact ? 50 : 56} onPress={onKeep} disabled={busy} containerStyle={{ flex: 1 }} />
             <Btn
-              label="Hyväksy"
+              label={t.accept}
               icon="check"
               height={compact ? 50 : 56}
               onPress={onAccept}
@@ -161,7 +167,6 @@ export function Review({ ids, goal, single }: { ids: string[]; goal?: number; si
               containerStyle={{ flex: 1 }}
             />
           </View>
-          <Btn label="Kysy tästä" kind="text" icon="chat" height={36} onPress={() => nav.push({ name: 'ask', id: s.id })} />
         </Animated.View>
       </View>
     </>
@@ -185,53 +190,80 @@ function Saving({ lead, value }: { lead: string; value: number }) {
   );
 }
 
-function Reason({ text }: { text: string }) {
+/** The card's short explanation, with the "Kerro lisää" link right under it. */
+function Reason({ text, onLearn }: { text: string; onLearn: () => void }) {
   const compact = useCompact();
   return (
-    <T s={compact ? 16 : 17} c={C.ink2} style={{ lineHeight: compact ? 22 : 24 }}>
-      {text}
-    </T>
+    <View>
+      <T s={compact ? 16 : 17} c={C.ink2} style={{ lineHeight: compact ? 22 : 24 }}>
+        {text}
+      </T>
+      <LearnMore size={compact ? 16 : 17} onPress={onLearn} containerStyle={{ marginTop: -2, marginBottom: -6 }} />
+    </View>
   );
 }
 
-function CardBody({ s, qty, setQty, saving }: { s: Suggestion; qty: number; setQty: (n: number) => void; saving: number }) {
+const NBSP = String.fromCharCode(160);
+
+/**
+ * One side of the swap comparison. Plain information, not a choice: no border or
+ * fill of its own, so it doesn't read as a button (the card's buttons are below).
+ */
+function SwapSide({ caption, p, old }: { caption: string; p: SwapProduct; old?: boolean }) {
+  const compact = useCompact();
+  return (
+    <View style={styles.side}>
+      <T w={700} s={12} c={old ? C.muted : C.greenDark} style={styles.caption}>
+        {caption.toUpperCase()}
+      </T>
+      {p.image ? (
+        <Image
+          source={p.image}
+          resizeMode="contain"
+          style={[styles.packshot, compact && styles.packshotC, old && { opacity: 0.85 }]}
+          accessibilityIgnoresInvertColors
+        />
+      ) : null}
+      <T w={600} s={compact ? 13 : 14} c={C.ink2} numberOfLines={2} style={styles.sideName}>
+        {/* Keep the pack size ("900 g", "1 kg") on one line with the word before it. */}
+        {p.name.replace(/ (\d+(?:[.,]\d+)?) (g|kg|l|ml)$/, `${NBSP}$1${NBSP}$2`)}
+      </T>
+      <T w={800} s={old ? 16 : 19} c={old ? C.muted : C.green} style={old ? styles.strike : undefined}>
+        {eur(p.price)}
+      </T>
+    </View>
+  );
+}
+
+function CardBody({
+  s,
+  qty,
+  setQty,
+  onLearn,
+}: {
+  s: Suggestion;
+  qty: number;
+  setQty: (n: number) => void;
+  onLearn: () => void;
+}) {
+  const t = useT();
+  const compact = useCompact();
   if (s.kind === 'remove' || s.kind === 'pause') {
-    return (
-      <>
-        <Reason text={s.reason} />
-        <Saving lead={s.lead} value={saving} />
-      </>
-    );
+    return <Reason text={s.reason} onLearn={onLearn} />;
   }
   if (s.kind === 'swap') {
     return (
       <>
-        <View style={{ flexDirection: 'row', gap: 10 }}>
-          <View style={[styles.prod, { borderColor: C.border }]}>
-            <T w={700} s={13} c={C.muted}>
-              Nyt
-            </T>
-            <T w={600} s={15} style={{ lineHeight: 19 }} numberOfLines={2}>
-              {s.from.name}
-            </T>
-            <T w={800} s={19} c={C.muted}>
-              {eur(s.from.price)}
-            </T>
-          </View>
-          <View style={[styles.prod, { borderColor: C.green, borderWidth: 3, backgroundColor: C.greenTint }]}>
-            <T w={700} s={13} c={C.greenDark}>
-              Halvempi
-            </T>
-            <T w={600} s={15} style={{ lineHeight: 19 }} numberOfLines={2}>
-              {s.to.name}
-            </T>
-            <T w={800} s={19} c={C.green}>
-              {eur(s.to.price)}
-            </T>
-          </View>
+        <View
+          style={[styles.swap, compact && styles.swapC]}
+          accessible
+          accessibilityLabel={`${t.now}: ${s.from.name}, ${eur(s.from.price)}. ${t.cheaper}: ${s.to.name}, ${eur(s.to.price)}`}
+        >
+          <SwapSide caption={t.now} p={s.from} old />
+          <Icon name="arrow" size={compact ? 20 : 22} color={C.green} strokeWidth={2.6} />
+          <SwapSide caption={t.cheaper} p={s.to} />
         </View>
-        <Reason text={s.reason} />
-        <Saving lead={s.lead} value={saving} />
+        <Reason text={s.reason} onLearn={onLearn} />
       </>
     );
   }
@@ -245,24 +277,23 @@ function CardBody({ s, qty, setQty, saving }: { s: Suggestion; qty: number; setQ
   };
   return (
     <>
-      <Reason text={s.reason} />
+      <Reason text={s.reason} onLearn={onLearn} />
       <View style={styles.stepper}>
-        <Press onPress={() => step(-1)} style={styles.stepBtn} haptic={false} accessibilityLabel="Vähemmän">
+        <Press onPress={() => step(-1)} style={styles.stepBtn} haptic={false} accessibilityLabel={t.less}>
           <Icon name="minus" size={24} color={C.green} strokeWidth={2.6} />
         </Press>
         <View style={{ alignItems: 'center', flex: 1 }}>
           <T w={800} s={26} style={{ lineHeight: 30 }}>
-            {qty} kpl
+            {qty} {unitOf(s)}
           </T>
           <T s={13} c={C.muted}>
-            {s.product} · nyt {s.current} kpl
+            {t.nowQty(s.product, s.current, unitOf(s))}
           </T>
         </View>
-        <Press onPress={() => step(1)} style={styles.stepBtn} haptic={false} accessibilityLabel="Enemmän">
+        <Press onPress={() => step(1)} style={styles.stepBtn} haptic={false} accessibilityLabel={t.more}>
           <Icon name="plus" size={24} color={C.green} strokeWidth={2.6} />
         </Press>
       </View>
-      <Saving lead={qty === s.current ? 'Sama määrä kuin nyt, ei säästöä' : s.lead} value={saving} />
     </>
   );
 }
@@ -270,8 +301,8 @@ function CardBody({ s, qty, setQty, saving }: { s: Suggestion; qty: number; setQ
 const styles = StyleSheet.create({
   screen: { flex: 1, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12, gap: 12 },
   screenC: { paddingTop: 8, paddingBottom: 8, gap: 8 },
-  card: { flex: 1, backgroundColor: C.white, borderRadius: 22, paddingTop: 16, paddingBottom: 6, paddingHorizontal: 18, gap: 12 },
-  cardC: { paddingTop: 12, paddingBottom: 2, gap: 9 },
+  card: { flex: 1, backgroundColor: C.white, borderRadius: 22, paddingTop: 16, paddingBottom: 16, paddingHorizontal: 18, gap: 12 },
+  cardC: { paddingTop: 12, paddingBottom: 12, gap: 9 },
   source: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -284,7 +315,21 @@ const styles = StyleSheet.create({
   strike: { textDecorationLine: 'line-through' },
   big: { ...font(800, 36, C.green), letterSpacing: -0.5, lineHeight: 42 },
   bigC: { fontSize: 30, lineHeight: 35 },
-  prod: { flex: 1, borderWidth: 2, borderRadius: 14, paddingVertical: 9, paddingHorizontal: 11, gap: 2 },
+  swap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F3F6F4',
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+  },
+  swapC: { paddingVertical: 6 },
+  side: { flex: 1, alignItems: 'center', gap: 2 },
+  caption: { letterSpacing: 0.6 },
+  packshot: { width: '100%', height: 84, marginVertical: 4 },
+  packshotC: { height: 40, marginVertical: 0 },
+  sideName: { textAlign: 'center', lineHeight: 18 },
   stepper: {
     flexDirection: 'row',
     alignItems: 'center',

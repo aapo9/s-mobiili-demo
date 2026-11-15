@@ -19,10 +19,30 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "output": "static",
+      "name": "S-mobiili Säästä (demo)",
+      "shortName": "Säästä",
+      "lang": "fi",
+      "themeColor": "#ffffff",
+      "backgroundColor": "#ffffff"
     },
     "plugins": [
-      "expo-font"
-    ]
+      "expo-font",
+      [
+        "expo-router",
+        {
+          "origin": "https://s-mobiili-demo.expo.app",
+          "apiRoutes": true
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "e5692d0c-6c5d-43d8-85e6-83749c3cd316"
+      }
+    },
+    "owner": "aapoviikari",
+    "scheme": "smobiilidemo"
   }
 }

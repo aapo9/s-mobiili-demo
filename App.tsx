@@ -13,12 +13,14 @@ import {
 import { C } from './src/theme';
 import { NavProvider, Route, useNav } from './src/nav';
 import { SaveProvider } from './src/state';
+import { LangProvider, useLang } from './src/i18n';
 import { MIN_BOTTOM, TabBar } from './src/components/TabBar';
+import { useKeyboardHeight } from './src/components/keyboard';
 import { Home } from './src/screens/Home';
 import { Save } from './src/screens/Save';
 import { Review } from './src/screens/Review';
 import { Detail } from './src/screens/Detail';
-import { Ask } from './src/screens/Ask';
+import { Learn, LearnTransfer } from './src/screens/Learn';
 import { Shopping } from './src/screens/Shopping';
 import { Account } from './src/screens/Account';
 import { EtuCard, Me } from './src/screens/Other';
@@ -39,8 +41,10 @@ function renderRoute(r: Route) {
       return <Review ids={r.ids} goal={r.goal} single={r.single} />;
     case 'detail':
       return <Detail id={r.id} />;
-    case 'ask':
-      return <Ask id={r.id} />;
+    case 'learn':
+      return <Learn id={r.id} />;
+    case 'learnTransfer':
+      return <LearnTransfer amount={r.amount} />;
     case 'shopping':
       return <Shopping />;
   }
@@ -68,15 +72,24 @@ function ScreenTransition({ children }: { children: React.ReactNode }) {
 function Shell() {
   const insets = useSafeAreaInsets();
   const { current } = useNav();
+  // Subscribing here re-renders every screen when the language changes (they're all created below).
+  useLang();
   // The suggestion cards are a focused flow that must fit one screen, so they hide the tab bar.
   const focused = current.route.name === 'review';
+  // With the keyboard open the screen ends right at its top edge (the app is edge-to-edge, so nothing resizes
+  // by itself), and the tab bar is hidden so a text field sits directly above the keyboard.
+  const keyboard = useKeyboardHeight();
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
+    <View style={[styles.root, { paddingTop: insets.top, paddingBottom: keyboard }]}>
       <StatusBar style="dark" />
       <View style={{ flex: 1, backgroundColor: C.bg }}>
         <ScreenTransition key={current.key}>{renderRoute(current.route)}</ScreenTransition>
       </View>
-      {focused ? <View style={{ height: Math.max(insets.bottom, MIN_BOTTOM), backgroundColor: C.bg }} /> : <TabBar />}
+      {keyboard > 0 ? null : focused ? (
+        <View style={{ height: Math.max(insets.bottom, MIN_BOTTOM), backgroundColor: C.bg }} />
+      ) : (
+        <TabBar />
+      )}
     </View>
   );
 }
@@ -92,11 +105,13 @@ export default function App() {
   if (!loaded) return <View style={{ flex: 1, backgroundColor: C.white }} />;
   return (
     <SafeAreaProvider>
-      <SaveProvider>
-        <NavProvider>
-          <Shell />
-        </NavProvider>
-      </SaveProvider>
+      <LangProvider>
+        <SaveProvider>
+          <NavProvider>
+            <Shell />
+          </NavProvider>
+        </SaveProvider>
+      </LangProvider>
     </SafeAreaProvider>
   );
 }

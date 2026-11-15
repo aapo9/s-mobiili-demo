@@ -1,22 +1,26 @@
 import React from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { C, eur, eur0 } from '../theme';
-import { ACCOUNT_BALANCE, PAYDAY } from '../data';
+import { C, eur } from '../theme';
 import { useNav } from '../nav';
 import { useSave } from '../state';
 import { Icon, IconName } from '../components/Icon';
 import { Cta, Press, T } from '../components/ui';
+import { useT } from '../i18n';
+import type { Strings } from '../i18n/strings';
 
-const QUICK: { label: string; icon: IconName }[] = [
-  { label: 'Uusi maksu', icon: 'plus' },
-  { label: 'Oma siirto', icon: 'transfer' },
-  { label: 'Edut lähellä', icon: 'pin' },
-  { label: 'Tallennetut', icon: 'bookmark' },
+const QUICK: { label: keyof Strings; icon: IconName }[] = [
+  { label: 'quickNewPayment', icon: 'plus' },
+  { label: 'quickOwnTransfer', icon: 'transfer' },
+  { label: 'quickBenefits', icon: 'pin' },
+  { label: 'quickSaved', icon: 'bookmark' },
 ];
 
 export function Home() {
   const nav = useNav();
-  const { pendingIds, pendingSaving } = useSave();
+  const t = useT();
+  const { demo, baseline, saved, pendingIds, pendingSaving, transferred } = useSave();
+  // Running short before payday changes the invitation: it's about getting back above zero.
+  const short = baseline + saved < 0;
   // The card is only an invitation to new suggestions; with none left it goes away.
   // Opens the Säästä tab first, so the user sees the outcome before reviewing suggestions.
   const openSave = () => nav.goTab('save');
@@ -31,14 +35,14 @@ export function Home() {
         <View style={styles.bonus}>
           <View style={{ gap: 2 }}>
             <T w={600} s={16} c={C.white}>
-              Bonusta tulossa
+              {t.bonusComing}
             </T>
             <T w={800} s={30} c={C.white}>
-              4,12 €
+              {eur(4.12)}
             </T>
           </View>
           <T w={600} s={16} c={C.white} style={{ textDecorationLine: 'underline' }}>
-            Kokonaishyöty
+            {t.totalBenefit}
           </T>
         </View>
       </View>
@@ -47,11 +51,11 @@ export function Home() {
         {pendingIds.length > 0 ? (
           <View style={styles.saveCard}>
             <T w={800} s={27} style={{ lineHeight: 33 }}>
-              Löysimme sinulle helppoja säästöjä
+              {short ? t.homeShort : t.homeFound}
             </T>
             <Cta
-              title={`Säästä ${eur0(pendingSaving)} nyt`}
-              sub={`${pendingIds.length} ${pendingIds.length === 1 ? 'pieni säästö' : 'pientä säästöä'}`}
+              title={t.saveNow(pendingSaving)}
+              sub={t.smallSavings(pendingIds.length)}
               onPress={openSave}
               height={66}
             />
@@ -65,7 +69,7 @@ export function Home() {
                 <Icon name={q.icon} size={26} color={C.white} />
               </View>
               <T s={14} style={{ textAlign: 'center' }}>
-                {q.label}
+                {t[q.label] as string}
               </T>
             </View>
           ))}
@@ -73,7 +77,7 @@ export function Home() {
 
         <View style={{ gap: 10 }}>
           <T w={800} s={22} c={C.green}>
-            Tilit ja kortit
+            {t.accountsAndCards}
           </T>
           <Press onPress={() => nav.goTab('account')} style={styles.account}>
             <T w={500} s={19}>
@@ -81,11 +85,19 @@ export function Home() {
             </T>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <T w={800} s={21} c={C.green}>
-                {eur(ACCOUNT_BALANCE)}
+                {eur(demo.balance - transferred)}
               </T>
               <Icon name="chevron" size={20} color={C.muted} strokeWidth={2.2} />
             </View>
           </Press>
+          <View style={styles.account}>
+            <T w={500} s={19}>
+              {demo.savingsAccount.name}
+            </T>
+            <T w={800} s={21} c={C.green} style={{ marginRight: 26 }}>
+              {eur(demo.savingsAccount.balance + transferred)}
+            </T>
+          </View>
         </View>
       </View>
     </ScrollView>

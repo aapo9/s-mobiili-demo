@@ -1,4 +1,5 @@
 import { TextStyle } from 'react-native';
+import { getLang } from './i18n/lang';
 
 export const C = {
   bg: '#EAF6EB',
@@ -22,6 +23,11 @@ export const C = {
   border: '#D5DDD8',
   divider: '#E6ECE8',
   navBorder: '#DCE3DE',
+  /** Destructive actions, e.g. "Peru tämä säästö". */
+  red: '#C62828',
+  /** Shortfall on the outcome bar when the payday estimate is negative. */
+  deficit: '#E5766F',
+  deficitTint: '#FDECEA',
   orangeTint: '#FFE9CC',
   orangeInk: '#6B3A00',
   orangeInkDark: '#3A2000',
@@ -42,13 +48,16 @@ export function font(weight: Weight, size: number, color: string = C.ink, extra?
   return { fontFamily: families[weight], fontSize: size, color, ...extra };
 }
 
-/** Finnish money formatting: 24,90 € */
+/** Money in the active language: 24,90 € (fi) or €24.90 (en). */
 export function eur(n: number, decimals = 2): string {
-  const fixed = Math.abs(n).toFixed(decimals).replace('.', ',');
-  return `${n < 0 ? '−' : ''}${fixed} €`;
+  const fixed = Math.abs(n).toFixed(decimals);
+  const sign = n < 0 ? '−' : '';
+  return getLang() === 'en' ? `${sign}€${fixed}` : `${sign}${fixed.replace('.', ',')} €`;
 }
 
-/** Whole euros, rounded: 58 € */
+/** Whole euros, rounded: 58 €, −48 € (fi) or €58, −€48 (en). */
 export function eur0(n: number): string {
-  return `${Math.round(n)} €`;
+  const r = Math.round(n);
+  const sign = r < 0 ? '−' : '';
+  return getLang() === 'en' ? `${sign}€${Math.abs(r)}` : `${sign}${Math.abs(r)} €`;
 }

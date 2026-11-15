@@ -4,6 +4,7 @@ import * as Haptics from 'expo-haptics';
 import { C, font, Weight } from '../theme';
 import { Icon, IconName } from './Icon';
 import { useNav } from '../nav';
+import { useT } from '../i18n';
 
 export const TAB_BAR_HEIGHT = 64;
 
@@ -71,10 +72,11 @@ export function Press({
 
 export function Header({ title, onBack }: { title: string; onBack?: () => void }) {
   const nav = useNav();
+  const t = useT();
   return (
     <View style={styles.header}>
       {onBack !== undefined || nav.stack.length > 1 ? (
-        <Press onPress={onBack ?? nav.back} style={styles.headerBtn} accessibilityLabel="Takaisin">
+        <Press onPress={onBack ?? nav.back} style={styles.headerBtn} accessibilityLabel={t.back}>
           <Icon name="back" size={28} strokeWidth={2.2} />
         </Press>
       ) : (
@@ -113,17 +115,20 @@ export function Btn({
   height = 62,
   disabled,
   containerStyle,
+  color: colorOverride,
 }: {
   label: string;
   onPress: () => void;
   kind?: BtnKind;
+  /** Label and icon color, e.g. C.red for a destructive text button. */
+  color?: string;
   icon?: IconName;
   height?: number;
   disabled?: boolean;
   /** Layout on the touch target, e.g. flex: 1 in a row. */
   containerStyle?: StyleProp<ViewStyle>;
 }) {
-  const color = kind === 'primary' ? C.white : C.green;
+  const color = colorOverride ?? (kind === 'primary' ? C.white : kind === 'text' ? C.ink : C.green);
   return (
     <Press
       onPress={onPress}
@@ -136,8 +141,8 @@ export function Btn({
         kind === 'outline' && { backgroundColor: C.white, borderWidth: 2.5, borderColor: C.green },
       ]}
     >
-      {icon ? <Icon name={icon} size={22} color={kind === 'text' ? C.ink : color} strokeWidth={2.2} /> : null}
-      <T w={700} s={kind === 'text' ? 18 : 20} c={kind === 'text' ? C.ink : color}>
+      {icon ? <Icon name={icon} size={22} color={color} strokeWidth={2.2} /> : null}
+      <T w={700} s={kind === 'text' ? 18 : 20} c={color}>
         {label}
       </T>
     </Press>
@@ -173,10 +178,13 @@ export function AnimatedNumber({
   duration = 650,
   from,
   delay = 0,
+  colorFor,
 }: {
   value: number;
   format: (n: number) => string;
   style?: StyleProp<TextStyle>;
+  /** Text color for the number currently shown, e.g. red while it counts through negative values. */
+  colorFor?: (n: number) => string;
   duration?: number;
   /** Start value on mount; defaults to `value` (no intro count). */
   from?: number;
@@ -196,7 +204,7 @@ export function AnimatedNumber({
     Animated.timing(anim, { toValue: value, duration, delay: d, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, anim, duration]);
-  return <Text style={style}>{format(shown)}</Text>;
+  return <Text style={[style, colorFor && { color: colorFor(shown) }]}>{format(shown)}</Text>;
 }
 
 export function Pill({ label, bg, color, icon }: { label: string; bg: string; color: string; icon?: IconName }) {
@@ -211,6 +219,8 @@ export function Pill({ label, bg, color, icon }: { label: string; bg: string; co
 }
 
 const styles = StyleSheet.create({
+  /** Text link; the padding only grows the touch target. */
+  learn: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingVertical: 6, paddingRight: 12 },
   header: {
     backgroundColor: C.white,
     height: 60,
@@ -247,3 +257,29 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
 });
+
+/** "Kerro lisää": the tinted, easy-to-spot entry to a suggestion's explanation. */
+export function LearnMore({
+  onPress,
+  size = 17,
+  containerStyle,
+}: {
+  onPress: () => void;
+  size?: number;
+  containerStyle?: StyleProp<ViewStyle>;
+}) {
+  const t = useT();
+  return (
+    <Press
+      onPress={onPress}
+      containerStyle={[{ alignSelf: 'flex-start' }, containerStyle]}
+      style={styles.learn}
+      accessibilityLabel={t.learnMoreA11y}
+    >
+      <T w={700} s={size} c={C.green}>
+        {t.learnMore}
+      </T>
+      <Icon name="chevron" size={size + 1} color={C.green} strokeWidth={2.6} />
+    </Press>
+  );
+}

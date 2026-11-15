@@ -1,25 +1,26 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, StyleSheet, View } from 'react-native';
 import { C, eur } from '../theme';
-import { SHOPPING_BASE, byId } from '../data';
 import { useNav } from '../nav';
 import { useSave } from '../state';
 import { Icon } from '../components/Icon';
 import { Body, Btn, Card, Header, Pill, Press, T, success } from '../components/ui';
+import { useT } from '../i18n';
 
 type Line = { id: string; name: string; qty: number; price: number; unit?: string; note?: string; saved?: number; was?: string };
 
 export function Shopping() {
   const nav = useNav();
   const st = useSave();
+  const t = useT();
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const [preparing, setPreparing] = useState(false);
 
   // Build the next trip's list from habits + accepted changes.
-  const cheese = byId('s-cheese');
-  const battery = byId('s-battery');
-  const lines: Line[] = [...SHOPPING_BASE];
-  if (cheese.kind === 'swap') {
+  const cheese = st.demo.find('s-cheese');
+  const battery = st.demo.find('s-battery');
+  const lines: Line[] = [...st.demo.shoppingBase];
+  if (cheese?.kind === 'swap') {
     const swapped = st.decisions[cheese.id] === 'accepted';
     lines.splice(2, 0, {
       id: 'l-cheese',
@@ -30,7 +31,7 @@ export function Shopping() {
       was: swapped ? cheese.from.name : undefined,
     });
   }
-  if (battery.kind === 'reduce') {
+  if (battery?.kind === 'reduce') {
     const reduced = st.decisions[battery.id] === 'accepted';
     const before = Math.ceil(battery.current / 2);
     const n = reduced ? Math.ceil((st.qty[battery.id] ?? battery.suggested) / 2) : before;
@@ -41,13 +42,13 @@ export function Shopping() {
         qty: n,
         price: battery.unitPrice,
         saved: reduced && n < before ? (before - n) * battery.unitPrice : undefined,
-        was: reduced && n < before ? `${before} kpl` : undefined,
+        was: reduced && n < before ? `${before} ${t.pcs}` : undefined,
       });
     }
   }
   const total = lines.reduce((s, l) => s + l.qty * l.price, 0);
   const listSaving = lines.reduce((s, l) => s + (l.saved ?? 0), 0);
-  const todo = ['s-hbo'].map(byId).filter((s) => st.decisions[s.id] === 'accepted');
+  const todo = ['s-hbo'].flatMap((id) => st.demo.find(id) ?? []).filter((s) => st.decisions[s.id] === 'accepted');
 
   const prepare = () => {
     setPreparing(true);
@@ -60,18 +61,18 @@ export function Shopping() {
 
   return (
     <>
-      <Header title="Kauppalista" />
+      <Header title={t.shoppingList} />
       <Body>
         <Card style={{ gap: 2, paddingVertical: 16 }}>
           <T w={800} s={20}>
-            Seuraava kauppakäynti
+            {t.nextTrip}
           </T>
           <T s={16} c={C.muted}>
-            S-market Kallio · tavallisesti lauantaina
+            {t.tripWhere}
           </T>
           {listSaving > 0 ? (
             <View style={{ marginTop: 8 }}>
-              <Pill label={`Tämä lista säästää ${eur(listSaving)}`} bg={C.greenFlash} color={C.greenDark} icon="check" />
+              <Pill label={t.listSaves(listSaving)} bg={C.greenFlash} color={C.greenDark} icon="check" />
             </View>
           ) : null}
         </Card>
@@ -92,8 +93,8 @@ export function Shopping() {
                   {l.name}
                 </T>
                 <T s={14} c={C.muted}>
-                  {l.unit ?? `${l.qty} kpl`}
-                  {l.was ? ` · ennen ${l.was}` : ''}
+                  {l.unit ?? `${l.qty} ${t.pcs}`}
+                  {l.was ? t.was(l.was) : ''}
                 </T>
               </View>
               <View style={{ alignItems: 'flex-end', gap: 2 }}>
@@ -110,7 +111,7 @@ export function Shopping() {
           ))}
           <View style={[styles.row, { borderTopWidth: 1, borderTopColor: C.divider }]}>
             <T w={800} s={18} style={{ flex: 1 }}>
-              Yhteensä
+              {t.total}
             </T>
             <T w={800} s={18}>
               {eur(total)}
@@ -124,7 +125,7 @@ export function Shopping() {
           <Press onPress={prepare} disabled={preparing} style={styles.basketBtn}>
             {preparing ? <ActivityIndicator color={C.white} /> : <Icon name="cart" size={22} color={C.white} strokeWidth={2.2} />}
             <T w={700} s={20} c={C.white}>
-              {preparing ? 'Kootaan ostoskoria…' : 'Valmistele ostoskori'}
+              {preparing ? t.preparingBasket : t.prepareBasket}
             </T>
           </Press>
         )}
@@ -132,13 +133,13 @@ export function Shopping() {
         {todo.length > 0 ? (
           <View style={{ gap: 8, marginTop: 6 }}>
             <T w={800} s={20} c={C.green}>
-              Muista myös
+              {t.alsoRemember}
             </T>
             {todo.map((s) => (
               <Press key={s.id} onPress={() => nav.push({ name: 'detail', id: s.id })} style={styles.todo}>
                 <Icon name="info" size={22} color={C.orangeInk} strokeWidth={2.2} />
                 <T w={700} s={17} c={C.orangeInkDark} style={{ flex: 1 }}>
-                  Peru HBO Max ennen 20.11.
+                  {t.cancelBefore('HBO Max', s.kind === 'pause' ? s.nextCharge : '')}
                 </T>
                 <Icon name="chevron" size={18} color={C.orangeInk} strokeWidth={2.2} />
               </Press>
@@ -151,6 +152,7 @@ export function Shopping() {
 }
 
 function BasketReady({ count, total }: { count: number; total: number }) {
+  const t = useT();
   const a = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.spring(a, { toValue: 1, useNativeDriver: true, speed: 12, bounciness: 10 }).start();
@@ -162,13 +164,13 @@ function BasketReady({ count, total }: { count: number; total: number }) {
           <Icon name="check" size={20} color={C.white} strokeWidth={3} />
         </View>
         <T w={800} s={20} style={{ flex: 1 }}>
-          Ostoskori on valmiina
+          {t.basketReady}
         </T>
       </View>
       <T s={16} c={C.ink2} style={{ lineHeight: 23 }}>
-        {count} tuotetta, {eur(total)}, S-kaupat-palvelussa. Nouto S-market Kallio la 15.11. klo 10–11. Voit vielä muokata koria.
+        {t.basketReadyBody(count, total)}
       </T>
-      <Btn label="Avaa S-kaupat" kind="outline" height={54} onPress={() => {}} />
+      <Btn label={t.openSKaupat} kind="outline" height={54} onPress={() => {}} />
     </Animated.View>
   );
 }
