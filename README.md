@@ -1,6 +1,19 @@
 # S-mobiili · Säästä (demo)
 
-A working React Native and Expo demo of the "Raivaa tilaa" concept. It cleans up unnecessary future spending before payday, inside S-mobiili.
+A savings feature for S-Bank's S-mobiili app that helps people have more money left on payday, without budgeting.
+
+Most money tools look back at what you already spent. Säästä looks ahead. From your own past purchases it estimates what you will still spend before your next payday. Then it suggests a few small, concrete changes to purchases that haven't happened yet, and shows the effect on your payday balance straight away.
+
+## How it works
+
+- **Forecast to payday.** Upcoming bills, subscriptions and typical spending are estimated from data the bank already has: card transactions and S-Etukortti item-level purchases.
+- **Concrete suggestions, one at a time.** Each card targets one real upcoming purchase: pause HBO Max before its next charge, skip a Saturday food delivery, switch to a cheaper cheese, buy fewer energy drinks. Accept or reject it with one tap.
+- **One clear outcome.** A single bar shows your estimated balance on payday and grows as you accept changes.
+- **You stay in control.** A purchase you reject is protected and never suggested again. Completed transactions never change; only the forecast does.
+- **Explained, not just advised.** *Kerro lisää* ("Tell me more") explains why a suggestion was made, what it adds up to over a year, and one money concept worth knowing. Ask follow-up questions in your own words; an AI (Gemini) answers only from your data and that suggestion's facts.
+- **Savings become real money.** Once you're done, it suggests moving part of the freed money to your savings account. The amount is always less than what you saved and leaves a safe buffer for payday.
+
+This is a clickable prototype built for Junction. It runs on made-up data with three scenarios: a normal month, a tight month where the money runs out before payday, and a month that ends at almost zero.
 
 **Live demo: https://s-mobiili-demo.expo.app** (no install needed: it opens in any phone browser, and on a desktop it's shown in a phone-sized frame)
 
