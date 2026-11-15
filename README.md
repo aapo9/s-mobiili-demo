@@ -2,7 +2,7 @@
 
 A working React Native and Expo demo of the "Raivaa tilaa" concept. It cleans up unnecessary future spending before payday, inside S-mobiili.
 
-**Live demo: https://s-mobiili-demo.expo.app** (no install needed, open it on a phone or desktop browser)
+**Live demo: https://s-mobiili-demo.expo.app** (no install needed: it opens in any phone browser, and on a desktop it's shown in a phone-sized frame)
 
 <img src="docs/demo-qr.png" alt="QR code for the live demo" width="160">
 
@@ -23,18 +23,6 @@ Everything works without a Gemini key. Only free-text questions in **Kerro lisä
 To open it on a phone, scan the QR code with **Expo Go**: the Camera app on iOS, or the Expo Go app on Android. The phone and computer must be on the same Wi-Fi. If they can't be, use `npx expo start --tunnel`.
 
 The app uses Expo SDK 58, so Expo Go must be a version that supports SDK 58. `npx expo start --web` also runs it in a browser.
-
-## Try it without Expo Go
-
-The web build is live at **https://s-mobiili-demo.expo.app**. It opens in any phone browser, and on a desktop it's shown in a phone-sized frame. To publish changes there:
-
-```bash
-npm run deploy:web   # expo export --platform web && eas deploy --prod --environment production
-```
-
-The chat's Gemini key lives only on the server: `GEMINI_API_KEY` in `.env.local` locally, and an EAS environment variable when deployed (set it once with `eas env:create --name GEMINI_API_KEY --environment production --visibility sensitive`). The app calls its own `/api/chat` route, never Google directly.
-
-The QR code for the link is [`docs/demo-qr.png`](docs/demo-qr.png) ([`.svg`](docs/demo-qr.svg) for print and video).
 
 ## Demo script
 
@@ -58,7 +46,7 @@ The QR code for the link is [`docs/demo-qr.png`](docs/demo-qr.png) ([`.svg`](doc
 - `src/screens/*`: the screens.
 - `src/nav.tsx`: a small in-memory stack plus tabs. Android hardware back is supported.
 - `src/ai/`: the "Kerro lisää" explanations (hand-written) and the Gemini prompt for typed questions.
-- `src/app/api/chat+api.ts`: the server route that holds the Gemini key and calls the model.
+- `src/app/api/chat+api.ts`: the server route that holds the Gemini key and calls the model. The app only calls this route, so the key never reaches the client.
 - `src/i18n/`: Finnish and English strings.
 
 ## License
